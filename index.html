@@ -1,0 +1,43 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Agent tự nuôi</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{margin:0;font-family:"Segoe UI",Roboto,"Noto Sans",sans-serif;background:#0f172a;color:#e2e8f0;transition:background 1s}
+body.dying{background:#2a0f12}body.worried{background:#2a210f}
+.wrap{max-width:1100px;margin:auto;padding:24px;display:grid;grid-template-columns:340px 1fr;gap:20px}
+h1{grid-column:1/3;margin:0;font-size:26px}h1 small{color:#94a3b8;font-weight:400;font-size:15px}
+.card{background:#1e293b;border-radius:16px;padding:18px}
+.mascot{text-align:center}.face{font-size:130px;line-height:1.1;transition:transform .4s}
+.happy .face{animation:bounce 1s infinite}.dying .face{filter:grayscale(.8);transform:rotate(-12deg)}
+@keyframes bounce{50%{transform:translateY(-10px)}}
+.mood{font-size:22px;font-weight:700;margin-top:6px}.say{color:#cbd5e1;min-height:44px}
+.bar{height:14px;background:#334155;border-radius:8px;overflow:hidden;margin-top:12px}.bar i{display:block;height:100%;transition:width .5s,background .5s}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.stat b{display:block;font-size:26px}.stat span{color:#94a3b8;font-size:13px}
+.pos{color:#4ade80}.neg{color:#f87171}
+canvas{width:100%;height:150px;margin-top:12px}
+ul{list-style:none;padding:0;margin:0;max-height:300px;overflow:hidden}li{padding:6px 0;border-bottom:1px solid #334155;font-size:14px;display:flex;gap:8px}
+li .t{color:#64748b}li .m{margin-left:auto;white-space:nowrap}li.burn{color:#fca5a5}
+</style></head><body><div class="wrap">
+<h1>🍚 Agent tự nuôi <small>— AI tự đi làm để trả tiền gói Pro của nó</small></h1>
+<div class="card mascot" id="m"><div class="face" id="face">🙂</div><div class="mood" id="mood">Đang khởi động…</div>
+<div class="say" id="say"></div><div class="bar"><i id="hp"></i></div><div style="color:#94a3b8;font-size:13px;margin-top:6px">Tiến độ trả gói Pro (<span id="plan"></span>$/tháng)</div></div>
+<div class="card"><div class="stats">
+<div class="stat"><span>Chi phí API</span><b id="cost">$0</b></div><div class="stat"><span>Giá trị tạo ra</span><b id="value">$0</b></div>
+<div class="stat"><span>Lãi / lỗ</span><b id="bal">$0</b></div><div class="stat"><span>Việc đã làm</span><b id="jobs">0</b></div></div>
+<canvas id="c" width="700" height="150"></canvas></div>
+<div class="card" style="grid-column:1/3"><b>Nhật ký hoạt động</b><ul id="log"></ul></div></div>
+<script>
+const M={happy:["😄","Sống khỏe!","Làm ra tiền rồi, tháng này tự trả được gói Pro 💪"],ok:["🙂","Tạm ổn","Hòa vốn, cố thêm chút nữa…"],
+worried:["😰","Lo lắng","Đốt token nhiều quá, sắp hết tiền rồi…"],dying:["💀","Sắp chết đói","Hết tiền! Ai đó nạp tiền cứu tôi với 🆘"]};
+const hist=[],$=id=>document.getElementById(id),f=v=>(v<0?"-$":"$")+Math.abs(v).toFixed(2);
+function draw(){const c=$("c"),x=c.getContext("2d"),W=c.width,H=c.height;x.clearRect(0,0,W,H);if(hist.length<2)return;
+const mx=Math.max(10,...hist.map(Math.abs)),y=v=>H/2-v/mx*(H/2-8);x.strokeStyle="#475569";x.beginPath();x.moveTo(0,H/2);x.lineTo(W,H/2);x.stroke();
+x.lineWidth=3;x.beginPath();hist.forEach((v,i)=>{const px=i/(hist.length-1)*W;i?x.lineTo(px,y(v)):x.moveTo(px,y(v))});
+x.strokeStyle=hist.at(-1)>=0?"#4ade80":"#f87171";x.stroke()}
+function render(s){const m=M[s.mood];document.body.className=s.mood;$("m").className="card mascot "+s.mood;
+$("face").textContent=m[0];$("mood").textContent=m[1];$("say").textContent=m[2];$("plan").textContent=s.plan;
+const pct=Math.max(0,Math.min(100,s.balance/s.plan*100));$("hp").style.width=(s.balance<0?100:pct)+"%";$("hp").style.background=s.balance<0?"#ef4444":"#22c55e";
+$("cost").textContent=f(s.cost);$("value").textContent=f(s.value);$("bal").textContent=f(s.balance);$("bal").className=s.balance>=0?"pos":"neg";$("jobs").textContent=s.jobs;
+$("log").innerHTML=s.log.map(e=>`<li class="${e.kind}"><span class="t">${e.t}</span>${e.kind=="burn"?"🔥":e.kind=="job"?"✅":"ℹ️"} ${e.text}<span class="m">${e.kind=="info"?"":`-${f(e.cost)} / +${f(e.value)}`}</span></li>`).join("");
+hist.push(s.balance);if(hist.length>120)hist.shift();draw()}
+new EventSource("/events").onmessage=e=>render(JSON.parse(e.data));
+</script></body></html>
